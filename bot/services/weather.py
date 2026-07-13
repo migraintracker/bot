@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -381,7 +382,7 @@ class WeatherService:
         return await self._get_coordinates(city)
 
     async def resolve_timezone(self, lat: float, lon: float) -> int | None:
-        """Get UTC offset in hours from Open-Meteo forecast API."""
+        """Get UTC offset in hours from IANA timezone via Open-Meteo."""
         try:
             params = {
                 "latitude": lat,
@@ -393,10 +394,13 @@ class WeatherService:
             r = await self.client.get(self.OM_BASE, params=params)
             r.raise_for_status()
             data = r.json()
-            tz_abbr = data.get("timezone_abbreviation", "")
-            offset_str = data.get("utc_offset_seconds", 0)
-            return int(offset_str) // 3600
-        except Exception:
+            tz_name = data.get("timezone", "")
+            if tz_name:
+                tz = ZoneInfo(tz_name)
+                now = datetime.now(tz)
+                return int(now.utcoffset().total_seconds() // 3600)
+        except Exception as e:
+            logger.warning(f"Timezone resolution failed for ({lat},{lon}): {e}")
             return None
 
 
