@@ -127,4 +127,4 @@ docker-compose.yml
 
 ## Лицензия
 
-MIT
+AGPL-V3
